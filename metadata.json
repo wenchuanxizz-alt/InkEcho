@@ -1,0 +1,5 @@
+{
+  "name": "InkEcho",
+  "description": "A calm, private space to think out loud and organize your thoughts with gentle editorial assistance.",
+  "requestFramePermissions": ["microphone"]
+}
