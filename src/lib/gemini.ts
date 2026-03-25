@@ -6,11 +6,10 @@ function getAI() {
   if (!aiInstance) {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
-      // We don't throw here to avoid crashing the app, 
-      // but we log a warning and return null or handle it in the caller.
       console.warn("GEMINI_API_KEY is missing. AI features will be disabled.");
       return null;
     }
+    console.log("Gemini API initialized successfully.");
     aiInstance = new GoogleGenAI({ apiKey });
   }
   return aiInstance;

@@ -38,10 +38,16 @@ export default function App() {
   const [modalEditText, setModalEditText] = useState("");
   const pageSize = 5;
   
+  const [isAIConfigured, setIsAIConfigured] = useState(true);
+  
   const recognitionRef = useRef<any>(null);
 
   // Load theme and entries from localStorage
   useEffect(() => {
+    // Check if AI is configured
+    if (!process.env.GEMINI_API_KEY) {
+      setIsAIConfigured(false);
+    }
     const savedTheme = localStorage.getItem('echo_journal_theme') as 'light' | 'dark';
     if (savedTheme) {
       setTheme(savedTheme);
@@ -227,6 +233,11 @@ export default function App() {
 
   return (
     <div className={`min-h-screen ${theme === 'dark' ? 'dark' : ''} bg-[#F5F5F0] dark:bg-[#0F0F0F] text-[#1A1A1A] dark:text-[#E8E8E0] font-serif selection:bg-[#5A5A40]/20 transition-colors duration-500`}>
+      {!isAIConfigured && (
+        <div className="fixed top-0 left-0 right-0 z-[100] bg-[#8E3A3A] text-white py-2 px-4 text-center text-[10px] uppercase tracking-widest font-sans font-bold shadow-lg">
+          AI 功能未配置：请在 Vercel 中设置 GEMINI_API_KEY 环境变量并重新部署
+        </div>
+      )}
       <header className="max-w-2xl mx-auto px-6 pt-12 pb-8 flex justify-between items-end">
         <div>
           <h1 className="text-3xl font-brand text-[#5A5A40] dark:text-[#C5C5A5] -rotate-1 transition-colors duration-500">InkEcho</h1>
