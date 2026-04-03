@@ -15,11 +15,37 @@ import { zhCN } from 'date-fns/locale';
 // Speech Recognition setup
 const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
+const RippleEffect = React.memo(({ isRecording }: { isRecording: boolean }) => {
+  return (
+    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+      {[0, 1, 2].map((i) => (
+        <motion.div
+          key={`ripple-${i}`}
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={isRecording ? { 
+            scale: [1, 3],
+            opacity: [0.5, 0.2, 0]
+          } : { scale: 0.8, opacity: 0 }}
+          transition={isRecording ? {
+            duration: 4,
+            repeat: Infinity,
+            ease: "easeOut",
+            delay: i * 1.3,
+          } : { duration: 0.5 }}
+          className="absolute w-20 h-20 rounded-full bg-[#8E3A3A]/20 dark:bg-[#D16D6D]/20"
+        />
+      ))}
+    </div>
+  );
+});
+
 export default function App() {
   const [isJournalOpened, setIsJournalOpened] = useState(false);
   const [isOpening, setIsOpening] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [transcript, setTranscript] = useState('');
+  const transcriptRef = useRef('');
+  const accumulatedTranscriptRef = useRef('');
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [currentEntry, setCurrentEntry] = useState<JournalEntry | null>(null);
   const [isRefining, setIsRefining] = useState(false);
@@ -44,6 +70,14 @@ export default function App() {
   
   const recognitionRef = useRef<any>(null);
   const isRecordingRef = useRef(false);
+  const transcriptEndRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll transcript to bottom
+  useEffect(() => {
+    if (isRecording && transcriptEndRef.current) {
+      transcriptEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [transcript, isRecording]);
 
   // Load theme and entries from localStorage
   useEffect(() => {
@@ -88,6 +122,10 @@ export default function App() {
       return;
     }
 
+    setTranscript('');
+    transcriptRef.current = '';
+    accumulatedTranscriptRef.current = '';
+
     const recognition = new SpeechRecognition();
     recognition.continuous = true;
     recognition.interimResults = true;
@@ -97,29 +135,22 @@ export default function App() {
     recognition.onstart = () => {
       setIsRecording(true);
       isRecordingRef.current = true;
-      setTranscript('');
+      // Don't clear accumulated transcript here if we're restarting
+      if (transcriptRef.current === '') {
+        accumulatedTranscriptRef.current = '';
+      }
       setCurrentEntry(null);
     };
 
     recognition.onresult = (event: any) => {
-      let interimTranscript = '';
-      let finalTranscript = '';
-
-      for (let i = event.resultIndex; i < event.results.length; ++i) {
-        if (event.results[i].isFinal) {
-          finalTranscript += event.results[i][0].transcript;
-        } else {
-          interimTranscript += event.results[i][0].transcript;
-        }
+      let currentSessionTranscript = '';
+      for (let i = 0; i < event.results.length; ++i) {
+        currentSessionTranscript += event.results[i][0].transcript;
       }
       
-      // We want to show the full current state of the transcription
-      // SpeechRecognition results are cumulative for the session
-      let fullTranscript = '';
-      for (let i = 0; i < event.results.length; ++i) {
-        fullTranscript += event.results[i][0].transcript;
-      }
+      const fullTranscript = accumulatedTranscriptRef.current + currentSessionTranscript;
       setTranscript(fullTranscript);
+      transcriptRef.current = fullTranscript;
     };
 
     recognition.onerror = (event: any) => {
@@ -133,6 +164,9 @@ export default function App() {
 
     recognition.onend = () => {
       if (isRecordingRef.current) {
+        // Before restarting, save the current session's final results to accumulated
+        accumulatedTranscriptRef.current = transcriptRef.current;
+        
         // If we're still supposed to be recording, restart it
         // This handles timeouts like 'no-speech'
         try {
@@ -788,15 +822,18 @@ export default function App() {
               {/* Recording / Transcribing State */}
               <div className="min-h-[300px] flex flex-col justify-center">
                 {isRecording ? (
-                  <div className="space-y-6">
-                    <div className="flex items-center gap-2 text-[#5A5A40]/60 dark:text-[#C5C5A5]/60 text-xs font-sans uppercase tracking-widest animate-pulse transition-colors duration-500">
+                  <div className="space-y-6 flex flex-col h-full max-h-[40vh]">
+                    <div className="flex items-center gap-2 text-[#5A5A40]/60 dark:text-[#C5C5A5]/60 text-xs font-sans uppercase tracking-widest animate-pulse transition-colors duration-500 flex-shrink-0">
                       <span className="w-2 h-2 rounded-full bg-[#8E3A3A] dark:bg-[#D16D6D] shadow-[0_0_8px_rgba(142,58,58,0.5)]" />
                       正在倾听...
                     </div>
-                    <p className="text-2xl leading-relaxed text-[#5A5A40]/40 dark:text-[#C5C5A5]/40 italic transition-colors duration-500">
-                      {transcript || "说出你的想法..."}
-                      <span className="inline-block w-0.5 h-6 bg-[#5A5A40]/40 dark:text-[#C5C5A5]/40 animate-pulse ml-1 align-middle" />
-                    </p>
+                    <div className="flex-1 overflow-y-auto pr-4 scrollbar-hide">
+                      <p className="text-2xl leading-relaxed text-[#5A5A40]/40 dark:text-[#C5C5A5]/40 italic transition-colors duration-500">
+                        {transcript || "说出你的想法..."}
+                        <span className="inline-block w-0.5 h-6 bg-[#5A5A40]/40 dark:text-[#C5C5A5]/40 animate-pulse ml-1 align-middle" />
+                      </p>
+                      <div ref={transcriptEndRef} />
+                    </div>
                   </div>
                 ) : isRefining ? (
                   <div className="flex flex-col items-center justify-center space-y-4 py-20">
@@ -918,27 +955,7 @@ export default function App() {
                     )}
 
                     {/* Ripple Effect */}
-                    {isRecording && (
-                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                        {[0, 1, 2].map((i) => (
-                          <motion.div
-                            key={i}
-                            initial={{ scale: 0.8, opacity: 0.5 }}
-                            animate={{ 
-                              scale: [1, 3],
-                              opacity: [0.5, 0.2, 0]
-                            }}
-                            transition={{
-                              duration: 4,
-                              repeat: Infinity,
-                              ease: "easeOut",
-                              delay: i * 1.3,
-                            }}
-                            className="absolute w-20 h-20 rounded-full bg-[#8E3A3A]/20 dark:bg-[#D16D6D]/20"
-                          />
-                        ))}
-                      </div>
-                    )}
+                    <RippleEffect isRecording={isRecording} />
                     
                     <motion.button
                       whileHover={{ scale: 1.05 }}
