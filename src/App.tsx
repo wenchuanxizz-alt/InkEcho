@@ -820,9 +820,9 @@ export default function App() {
               className="space-y-12"
             >
               {/* Recording / Transcribing State */}
-              <div className="min-h-[300px] flex flex-col justify-center">
+              <div className={`min-h-[300px] flex flex-col ${isRecording ? 'justify-end pb-22' : 'justify-center'}`}>
                 {isRecording ? (
-                  <div className="space-y-6 flex flex-col h-full max-h-[40vh]">
+                  <div className="space-y-6 flex flex-col h-full max-h-[60vh]">
                     <div className="flex items-center gap-2 text-[#5A5A40]/60 dark:text-[#C5C5A5]/60 text-xs font-sans uppercase tracking-widest animate-pulse transition-colors duration-500 flex-shrink-0">
                       <span className="w-2 h-2 rounded-full bg-[#8E3A3A] dark:bg-[#D16D6D] shadow-[0_0_8px_rgba(142,58,58,0.5)]" />
                       正在倾听...
